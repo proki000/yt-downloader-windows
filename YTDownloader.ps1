@@ -145,6 +145,32 @@ function Download-FileWithUi {
     }
 }
 
+function Download-FirstAvailableWithUi {
+    param(
+        [string[]]$Urls,
+        [string]$Destination,
+        [string]$Label
+    )
+
+    $lastError = $null
+    for ($i = 0; $i -lt $Urls.Count; $i++) {
+        try {
+            Download-FileWithUi $Urls[$i] $Destination
+            return
+        }
+        catch {
+            $lastError = $_.Exception
+            Add-Log ("{0} download source failed: {1}" -f $Label, $_.Exception.Message)
+            Remove-Item -LiteralPath $Destination -Force -ErrorAction SilentlyContinue
+            if ($i + 1 -lt $Urls.Count) {
+                Add-Log ("Trying another {0} download source." -f $Label)
+            }
+        }
+    }
+
+    throw "All $Label download sources failed. Last error: $($lastError.Message)"
+}
+
 function Clear-SafeDirectory {
     param([string]$Path)
 
@@ -178,7 +204,10 @@ function Install-Tools {
 
         $ffZip = Join-Path $tmpRoot "ffmpeg.zip"
         $extractDir = Join-Path $tmpRoot "ffmpeg-extract"
-        Download-FileWithUi "https://www.gyan.dev/ffmpeg/builds/ffmpeg-release-essentials.zip" $ffZip
+        Download-FirstAvailableWithUi @(
+            "https://github.com/BtbN/FFmpeg-Builds/releases/download/latest/ffmpeg-master-latest-win64-gpl.zip",
+            "https://www.gyan.dev/ffmpeg/builds/ffmpeg-release-essentials.zip"
+        ) $ffZip "ffmpeg"
         Add-Log "Extracting ffmpeg. This can take a moment."
         Expand-Archive -LiteralPath $ffZip -DestinationPath $extractDir -Force
 

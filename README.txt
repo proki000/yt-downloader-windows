@@ -17,4 +17,5 @@ Notes:
 - The app does not bypass DRM, paid, private, or login-only restrictions.
 - 1440p / 2K is often only available as MKV/WebM-style video on YouTube. If MP4 fails for 2K, choose MKV.
 - Download tools are stored inside this folder under tools.
+- The app tries more than one ffmpeg download source if a mirror fails.
 - Start-YouTube-Downloader.cmd is kept only as an old fallback launcher.

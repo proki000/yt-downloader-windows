@@ -9,6 +9,7 @@ The app provides:
 - Quality choices: `480p`, `720p`, `1080p`, `1440p (2K)`, and best available.
 - Output container choices: `MP4` and `MKV`.
 - Built-in buttons to install or update `yt-dlp` and `ffmpeg` into a local `tools/` folder.
+- Multiple `ffmpeg` download sources, so one mirror failing does not stop setup.
 
 ## Download
 

@@ -393,7 +393,14 @@ namespace YTDownloaderWindows
 
                 string ffZip = Path.Combine(tmpRoot, "ffmpeg.zip");
                 string extractDir = Path.Combine(tmpRoot, "ffmpeg-extract");
-                DownloadFile("https://www.gyan.dev/ffmpeg/builds/ffmpeg-release-essentials.zip", ffZip);
+                DownloadFirstAvailable(
+                    new string[]
+                    {
+                        "https://github.com/BtbN/FFmpeg-Builds/releases/download/latest/ffmpeg-master-latest-win64-gpl.zip",
+                        "https://www.gyan.dev/ffmpeg/builds/ffmpeg-release-essentials.zip"
+                    },
+                    ffZip,
+                    "ffmpeg");
                 AddLog("Extracting ffmpeg. This can take a moment.");
                 ZipFile.ExtractToDirectory(ffZip, extractDir);
 
@@ -429,6 +436,35 @@ namespace YTDownloaderWindows
                 client.Headers.Add("User-Agent", "YT-Downloader-Windows");
                 client.DownloadFile(url, destination);
             }
+        }
+
+        private void DownloadFirstAvailable(string[] urls, string destination, string label)
+        {
+            Exception lastError = null;
+
+            for (int i = 0; i < urls.Length; i++)
+            {
+                try
+                {
+                    DownloadFile(urls[i], destination);
+                    return;
+                }
+                catch (Exception ex)
+                {
+                    lastError = ex;
+                    AddLog(label + " download source failed: " + ex.Message);
+                    if (File.Exists(destination))
+                    {
+                        File.Delete(destination);
+                    }
+                    if (i + 1 < urls.Length)
+                    {
+                        AddLog("Trying another " + label + " download source.");
+                    }
+                }
+            }
+
+            throw new InvalidOperationException("All " + label + " download sources failed.", lastError);
         }
 
         private void ClearSafeDirectory(string path)
