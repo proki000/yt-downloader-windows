@@ -8,7 +8,7 @@ There is also a desktop shortcut named YT Downloader.
 First use:
 1. Click Install / Update Tools.
 2. Paste a YouTube video link.
-3. Pick a quality and output container.
+3. Pick a video quality and output format, or choose an audio-only format like MP3.
 4. Choose a download folder.
 5. Click Download.
 

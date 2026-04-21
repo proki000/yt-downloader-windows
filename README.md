@@ -7,7 +7,7 @@ The app provides:
 - A normal Windows `.exe` GUI with no terminal window.
 - URL paste box, download folder picker, and progress log.
 - Quality choices: `480p`, `720p`, `1080p`, `1440p (2K)`, and best available.
-- Output container choices: `MP4` and `MKV`.
+- Output format choices: video as `MP4` or `MKV`, and audio-only as `MP3`, `M4A`, `WAV`, or `Opus`.
 - Built-in buttons to install or update `yt-dlp` and `ffmpeg` into a local `tools/` folder.
 - Multiple `ffmpeg` download sources, so one mirror failing does not stop setup.
 

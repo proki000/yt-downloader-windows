@@ -417,6 +417,25 @@ function Get-FormatSelector {
     return "bv*[height<=$Height]+ba/b[height<=$Height]/best[height<=$Height]"
 }
 
+function Test-AudioFormat {
+    param([string]$Format)
+
+    return ($Format -in @("MP3", "M4A", "WAV", "Opus"))
+}
+
+function Get-AudioFormatArgument {
+    param([string]$Format)
+
+    if ($Format -eq "Opus") { return "opus" }
+    return $Format.ToLowerInvariant()
+}
+
+function Update-FormatUi {
+    if ($null -eq $Script:QualityBox -or $null -eq $Script:ContainerBox) { return }
+
+    $Script:QualityBox.Enabled = -not (Test-AudioFormat ([string]$Script:ContainerBox.SelectedItem))
+}
+
 function Get-ValidatedUrl {
     $url = $Script:UrlBox.Text.Trim()
     if ([string]::IsNullOrWhiteSpace($url) -or $url -notmatch '^https?://') {
@@ -454,19 +473,34 @@ function Download-Video {
         $folder = Get-OutputFolder
         $height = Get-SelectedHeight
         $container = [string]$Script:ContainerBox.SelectedItem
-        $selector = Get-FormatSelector $height $container
-        $extension = $container.ToLowerInvariant()
         $outputTemplate = Join-Path $folder ("%(title).180B [%(id)s].%(ext)s")
 
-        $args = @(
-            "--newline",
-            "--windows-filenames",
-            "--no-mtime",
-            "--ffmpeg-location", $Script:FfmpegBin,
-            "-f", $selector,
-            "--merge-output-format", $extension,
-            "-o", $outputTemplate
-        )
+        if (Test-AudioFormat $container) {
+            $args = @(
+                "--newline",
+                "--windows-filenames",
+                "--no-mtime",
+                "--ffmpeg-location", $Script:FfmpegBin,
+                "-f", "bestaudio/best",
+                "--extract-audio",
+                "--audio-format", (Get-AudioFormatArgument $container),
+                "--audio-quality", "0",
+                "-o", $outputTemplate
+            )
+        }
+        else {
+            $selector = Get-FormatSelector $height $container
+            $extension = $container.ToLowerInvariant()
+            $args = @(
+                "--newline",
+                "--windows-filenames",
+                "--no-mtime",
+                "--ffmpeg-location", $Script:FfmpegBin,
+                "-f", $selector,
+                "--merge-output-format", $extension,
+                "-o", $outputTemplate
+            )
+        }
 
         if (-not $Script:PlaylistBox.Checked) {
             $args += "--no-playlist"
@@ -475,7 +509,12 @@ function Download-Video {
         $args += $url
 
         Add-Log ("Saving to {0}" -f $folder)
-        Add-Log ("Quality: {0}, container: {1}" -f $Script:QualityBox.SelectedItem, $container)
+        if (Test-AudioFormat $container) {
+            Add-Log ("Audio format: {0}" -f $container)
+        }
+        else {
+            Add-Log ("Quality: {0}, format: {1}" -f $Script:QualityBox.SelectedItem, $container)
+        }
         $exit = Invoke-ExternalProcess $Script:YtDlpPath $args
 
         if ($exit -eq 0) {
@@ -602,7 +641,7 @@ $Script:QualityBox.SelectedIndex = 2
 $Script:Form.Controls.Add($Script:QualityBox)
 
 $containerLabel = New-Object System.Windows.Forms.Label
-$containerLabel.Text = "Container"
+$containerLabel.Text = "Format"
 $containerLabel.AutoSize = $true
 $containerLabel.Location = New-Object System.Drawing.Point(204, 154)
 $Script:Form.Controls.Add($containerLabel)
@@ -613,7 +652,12 @@ $Script:ContainerBox.Location = New-Object System.Drawing.Point(204, 176)
 $Script:ContainerBox.Size = New-Object System.Drawing.Size(140, 24)
 [void]$Script:ContainerBox.Items.Add("MP4")
 [void]$Script:ContainerBox.Items.Add("MKV")
+[void]$Script:ContainerBox.Items.Add("MP3")
+[void]$Script:ContainerBox.Items.Add("M4A")
+[void]$Script:ContainerBox.Items.Add("WAV")
+[void]$Script:ContainerBox.Items.Add("Opus")
 $Script:ContainerBox.SelectedIndex = 0
+$Script:ContainerBox.Add_SelectedIndexChanged({ Update-FormatUi })
 $Script:Form.Controls.Add($Script:ContainerBox)
 
 $Script:PlaylistBox = New-Object System.Windows.Forms.CheckBox
@@ -741,5 +785,6 @@ $Script:Form.Add_FormClosing({
 
 Update-ToolStatus
 Add-Log "Ready. Paste a link, choose a quality, and click Download."
+Update-FormatUi
 
 [void]$Script:Form.ShowDialog()

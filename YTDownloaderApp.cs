@@ -61,6 +61,7 @@ namespace YTDownloaderWindows
             BuildUi();
             UpdateToolStatus();
             AddLog("Ready. Paste a link, choose a quality, and click Download.");
+            UpdateFormatUi();
         }
 
         private void BuildUi()
@@ -117,7 +118,7 @@ namespace YTDownloaderWindows
             Controls.Add(qualityBox);
 
             Label containerLabel = new Label();
-            containerLabel.Text = "Container";
+            containerLabel.Text = "Format";
             containerLabel.AutoSize = true;
             containerLabel.Location = new Point(204, 154);
             Controls.Add(containerLabel);
@@ -128,7 +129,12 @@ namespace YTDownloaderWindows
             containerBox.Size = new Size(140, 24);
             containerBox.Items.Add("MP4");
             containerBox.Items.Add("MKV");
+            containerBox.Items.Add("MP3");
+            containerBox.Items.Add("M4A");
+            containerBox.Items.Add("WAV");
+            containerBox.Items.Add("Opus");
             containerBox.SelectedIndex = 0;
+            containerBox.SelectedIndexChanged += delegate { UpdateFormatUi(); };
             Controls.Add(containerBox);
 
             playlistBox = new CheckBox();
@@ -548,23 +554,47 @@ namespace YTDownloaderWindows
             }
 
             string height = GetSelectedHeight();
-            string container = Convert.ToString(containerBox.SelectedItem);
-            string selector = GetFormatSelector(height, container);
-            string extension = container.ToLowerInvariant();
+            string format = Convert.ToString(containerBox.SelectedItem);
             string outputTemplate = Path.Combine(folder, "%(title).180B [%(id)s].%(ext)s");
 
             AddLog("Saving to " + folder);
-            AddLog("Quality: " + Convert.ToString(qualityBox.SelectedItem) + ", container: " + container);
+            if (IsAudioFormat(format))
+            {
+                AddLog("Audio format: " + format);
+            }
+            else
+            {
+                AddLog("Quality: " + Convert.ToString(qualityBox.SelectedItem) + ", format: " + format);
+            }
 
-            string[] args = BuildDownloadArgs(url, selector, extension, outputTemplate);
+            string[] args = BuildDownloadArgs(url, height, format, outputTemplate);
             RunYtDlp(args, "Downloading...", "Download finished.", "Download failed");
         }
 
-        private string[] BuildDownloadArgs(string url, string selector, string extension, string outputTemplate)
+        private string[] BuildDownloadArgs(string url, string height, string format, string outputTemplate)
         {
-            if (playlistBox.Checked)
+            string[] baseArgs;
+
+            if (IsAudioFormat(format))
             {
-                return new string[]
+                baseArgs = new string[]
+                {
+                    "--newline",
+                    "--windows-filenames",
+                    "--no-mtime",
+                    "--ffmpeg-location", ffmpegBin,
+                    "-f", "bestaudio/best",
+                    "--extract-audio",
+                    "--audio-format", GetAudioFormatArgument(format),
+                    "--audio-quality", "0",
+                    "-o", outputTemplate
+                };
+            }
+            else
+            {
+                string selector = GetFormatSelector(height, format);
+                string extension = format.ToLowerInvariant();
+                baseArgs = new string[]
                 {
                     "--newline",
                     "--windows-filenames",
@@ -572,23 +602,49 @@ namespace YTDownloaderWindows
                     "--ffmpeg-location", ffmpegBin,
                     "-f", selector,
                     "--merge-output-format", extension,
-                    "-o", outputTemplate,
-                    url
+                    "-o", outputTemplate
                 };
             }
 
-            return new string[]
+            if (!playlistBox.Checked)
             {
-                "--newline",
-                "--windows-filenames",
-                "--no-mtime",
-                "--ffmpeg-location", ffmpegBin,
-                "-f", selector,
-                "--merge-output-format", extension,
-                "-o", outputTemplate,
-                "--no-playlist",
-                url
-            };
+                baseArgs = AppendArgument(baseArgs, "--no-playlist");
+            }
+
+            return AppendArgument(baseArgs, url);
+        }
+
+        private string[] AppendArgument(string[] args, string value)
+        {
+            string[] result = new string[args.Length + 1];
+            Array.Copy(args, result, args.Length);
+            result[result.Length - 1] = value;
+            return result;
+        }
+
+        private bool IsAudioFormat(string format)
+        {
+            return format == "MP3" || format == "M4A" || format == "WAV" || format == "Opus";
+        }
+
+        private string GetAudioFormatArgument(string format)
+        {
+            if (format == "Opus")
+            {
+                return "opus";
+            }
+            return format.ToLowerInvariant();
+        }
+
+        private void UpdateFormatUi()
+        {
+            if (qualityBox == null || containerBox == null)
+            {
+                return;
+            }
+
+            bool audio = IsAudioFormat(Convert.ToString(containerBox.SelectedItem));
+            qualityBox.Enabled = !audio;
         }
 
         private bool EnsureToolsOrOfferInstall()
