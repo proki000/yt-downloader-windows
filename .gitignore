@@ -1,0 +1,10 @@
+tools/
+bin/
+obj/
+.vs/
+*.exe
+*.zip
+*.apk
+*.log
+*.tmp
+_tmp/
